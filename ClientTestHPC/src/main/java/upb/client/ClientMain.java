@@ -1,6 +1,7 @@
 package upb.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import upb.client.config.Config;
 import upb.client.protocol.MessageType;
 import upb.client.protocol.NetworkMessage;
 
@@ -14,24 +15,35 @@ import java.util.UUID;
 
 public class ClientMain {
     public static void main(String[] args) {
-        String host = "localhost";
-        int port = 8080;
+        String host = Config.getCoordinatorHost();
+        int port = Config.getCoordinatorPort();
 
-        System.out.println("=== HPC Service Demo Client ===");
+        System.out.println("=== HPC Service Demo Client (Python Execution) ===");
+        System.out.println("[Client] Loaded Configuration -> TARGET HOST: " + host + ", PORT: " + port);
 
-        // 1. Crear un dataset de prueba masivo
+        // 1. Crear dataset de datos de entrada (ejemplo: números del 1 al 20)
         List<Object> dataset = new ArrayList<>();
-        int dataSize = 50;
+        int dataSize = 20;
         for (int i = 1; i <= dataSize; i++) {
             dataset.add(i);
         }
 
-        String codeInstruction = "SQUARE"; // Operación enviada a los trabajadores
-        String jobId = "JOB-" + UUID.randomUUID().toString().substring(0, 6);
+        // 2. Código Python REAL que será enviado a los trabajadores
+        String pythonCode = """
+def process(item):
+    val = item * item
+    return {
+        "original": item,
+        "squared": val,
+        "is_even": val % 2 == 0
+    }
+""";
+
+        String jobId = "JOB-PY-" + UUID.randomUUID().toString().substring(0, 6);
 
         System.out.println("[Client] Submitting Job ID: " + jobId);
         System.out.println("[Client] Dataset Size: " + dataset.size() + " elements");
-        System.out.println("[Client] Executable Code Rule: " + codeInstruction);
+        System.out.println("[Client] Python Code to Execute:\n" + pythonCode);
 
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -41,7 +53,7 @@ public class ClientMain {
 
             NetworkMessage jobRequest = new NetworkMessage(MessageType.SUBMIT_JOB);
             jobRequest.setJobId(jobId);
-            jobRequest.setCode(codeInstruction);
+            jobRequest.setCode(pythonCode);
             jobRequest.setDatasetChunk(dataset);
 
             long clientStartTime = System.currentTimeMillis();
@@ -57,11 +69,13 @@ public class ClientMain {
                     System.out.println("\n========================================================");
                     System.out.println("[Client] SUCCESS! Received JOB_RESULT for Job ID: " + jobId);
                     System.out.println("--------------------------------------------------------");
-                    System.out.println("[Client Metrics] HPC Server Processing Time: " + response.getExecutionTimeMs() + " ms");
-                    System.out.println("[Client Metrics] End-to-End Client Round-Trip: " + clientTotalTime + " ms");
+                    System.out.println("[Client Metrics] HPC Server Computation Time: " + response.getExecutionTimeMs() + " ms");
+                    System.out.println("[Client Metrics] Client End-to-End Round-Trip: " + clientTotalTime + " ms");
                     System.out.println("--------------------------------------------------------");
                     System.out.println("[Client] Aggregated Final Result (" + response.getResultChunk().size() + " items):");
-                    System.out.println("--> " + response.getResultChunk());
+                    for (Object resItem : response.getResultChunk()) {
+                        System.out.println("  -> " + resItem);
+                    }
                     System.out.println("========================================================\n");
                 } else if (response.getType() == MessageType.ERROR) {
                     System.err.println("\n[Client] ERROR from Coordinator: " + response.getError());
