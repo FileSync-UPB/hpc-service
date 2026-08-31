@@ -70,6 +70,10 @@ public class TCPServer {
                 String workerId = initialMsg.getWorkerId() != null ? initialMsg.getWorkerId() : UUID.randomUUID().toString();
                 WorkerNode worker = new WorkerNode(workerId, socket, reader, writer);
                 workerRegistry.registerWorker(worker);
+                
+                // Hilo de monitoreo para detectar la desconexión del worker
+                threadPool.submit(() -> monitorWorkerDisconnect(worker));
+
             } else if (initialMsg.getType() == MessageType.SUBMIT_JOB) {
                 handleJobSubmission(initialMsg, writer);
                 socket.close();
@@ -82,6 +86,23 @@ public class TCPServer {
 
         } catch (Exception e) {
             System.err.println("[Coordinator] Error handling connection: " + e.getMessage());
+        }
+    }
+
+    private void monitorWorkerDisconnect(WorkerNode worker) {
+        try {
+            // Intenta leer del socket hasta que la conexión se cierre (-1 o excepción)
+            String input;
+            while ((input = worker.getReader().readLine()) != null) {
+                // Si el worker envía mensajes heartbeat u otros mensajes fuera de tareas, se pueden procesar aquí
+            }
+        } catch (Exception ignored) {
+        } finally {
+            System.out.println("[Coordinator] WARNING: Worker disconnected -> ID: " + worker.getWorkerId());
+            workerRegistry.unregisterWorker(worker.getWorkerId());
+            try {
+                worker.getSocket().close();
+            } catch (Exception ignored) {}
         }
     }
 
@@ -146,6 +167,7 @@ public class TCPServer {
                         }
                     } catch (Exception e) {
                         System.err.println("[Coordinator] Error dispatching task to worker " + worker.getWorkerId() + ": " + e.getMessage());
+                        System.out.println("[Coordinator] WARNING: Worker disconnected during task execution -> ID: " + worker.getWorkerId());
                         workerRegistry.unregisterWorker(worker.getWorkerId());
                     }
                     return new WorkerResponse(Collections.emptyList(), 0);
