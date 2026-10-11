@@ -1,0 +1,11 @@
+# Configuracion del nodo Master (ejemplo).
+# Pendiente de implementacion en fases posteriores.
+
+# Puerto TCP en el que el Master escucha conexiones.
+listen_port=8080
+
+# Numero maximo de workers simultaneos.
+max_workers=8
+
+# Timeout de conexion de workers (segundos).
+worker_timeout_s=30

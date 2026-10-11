@@ -1,0 +1,33 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled objects
+*.o
+*.a
+*.so
+*.dylib
+
+# Executables
+hpc_client
+hpc_master
+hpc_worker
+test_sum_squares
+test_partition
+*.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Results (generated data)
+results/*.csv
+results/*.json

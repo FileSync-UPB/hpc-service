@@ -1,0 +1,11 @@
+# Configuracion de un nodo Worker (ejemplo).
+# Pendiente de implementacion en fases posteriores.
+
+# Direccion del Master al cual conectarse.
+master_host=localhost
+
+# Puerto del Master.
+master_port=8080
+
+# Identificador del worker (se asignara automaticamente si esta vacio).
+worker_id=
