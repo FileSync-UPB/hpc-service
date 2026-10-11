@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Soporte de hilos nativos para pruebas de red
+# Soporte de hilos nativos para pruebas de red y concurrencia
 find_package(Threads REQUIRED)
 
 # Advertencias estrictas para GCC y Clang.
@@ -61,12 +61,42 @@ target_include_directories(hpc_network PUBLIC
 )
 target_link_libraries(hpc_network PUBLIC
     hpc_protocol
+    Threads::Threads
 )
 
 # Enlace con Winsock2 en entornos Windows
 if(WIN32)
     target_link_libraries(hpc_network PUBLIC ws2_32)
 endif()
+
+# ==============================================================================
+# Biblioteca: hpc_master_lib (Fase 3)
+# ==============================================================================
+add_library(hpc_master_lib STATIC
+    src/master/worker_registry.cpp
+    src/master/master_server.cpp
+)
+target_include_directories(hpc_master_lib PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(hpc_master_lib PUBLIC
+    hpc_network
+    Threads::Threads
+)
+
+# ==============================================================================
+# Biblioteca: hpc_worker_lib (Fase 3)
+# ==============================================================================
+add_library(hpc_worker_lib STATIC
+    src/worker/worker_node.cpp
+)
+target_include_directories(hpc_worker_lib PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(hpc_worker_lib PUBLIC
+    hpc_network
+    Threads::Threads
+)
 
 # ==============================================================================
 # Ejecutables principales
@@ -76,13 +106,13 @@ endif()
 add_executable(hpc_client src/client/main.cpp)
 target_link_libraries(hpc_client PRIVATE hpc_tasks hpc_network)
 
-# Master: esqueleto preparado para orquestación TCP.
+# Master: servidor de coordinación TCP.
 add_executable(hpc_master src/master/main.cpp)
-target_link_libraries(hpc_master PRIVATE hpc_tasks hpc_network)
+target_link_libraries(hpc_master PRIVATE hpc_master_lib hpc_tasks)
 
-# Worker: esqueleto preparado para ejecución de tareas TCP.
+# Worker: nodo trabajador conectado por TCP.
 add_executable(hpc_worker src/worker/main.cpp)
-target_link_libraries(hpc_worker PRIVATE hpc_tasks hpc_network)
+target_link_libraries(hpc_worker PRIVATE hpc_worker_lib hpc_tasks)
 
 # ==============================================================================
 # Pruebas (CTest)
@@ -106,3 +136,8 @@ add_test(NAME ProtocolTest COMMAND test_protocol)
 add_executable(test_network tests/integration/test_network.cpp)
 target_link_libraries(test_network PRIVATE hpc_network Threads::Threads)
 add_test(NAME NetworkTest COMMAND test_network)
+
+# Pruebas Fase 3
+add_executable(test_master_worker tests/integration/test_master_worker.cpp)
+target_link_libraries(test_master_worker PRIVATE hpc_master_lib hpc_worker_lib Threads::Threads)
+add_test(NAME MasterWorkerTest COMMAND test_master_worker)

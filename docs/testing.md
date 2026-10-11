@@ -12,15 +12,17 @@ Salida esperada:
 ```text
 Test project /path/to/build
     Start 1: SumSquaresTest
-1/4 Test #1: SumSquaresTest ...................   Passed    0.02 sec
+1/5 Test #1: SumSquaresTest ...................   Passed    0.02 sec
     Start 2: PartitionTest
-2/4 Test #2: PartitionTest ....................   Passed    0.02 sec
+2/5 Test #2: PartitionTest ....................   Passed    0.02 sec
     Start 3: ProtocolTest
-3/4 Test #3: ProtocolTest .....................   Passed    0.02 sec
+3/5 Test #3: ProtocolTest .....................   Passed    0.02 sec
     Start 4: NetworkTest
-4/4 Test #4: NetworkTest ......................   Passed    0.63 sec
+4/5 Test #4: NetworkTest ......................   Passed    0.63 sec
+    Start 5: MasterWorkerTest
+5/5 Test #5: MasterWorkerTest .................   Passed    2.63 sec
 
-100% tests passed, 0 tests failed out of 4
+100% tests passed, 0 tests failed out of 5
 ```
 
 ---
@@ -35,6 +37,9 @@ Test project /path/to/build
 # Fase 2: Protocolo binario y comunicación TCP
 ./build/test_protocol
 ./build/test_network
+
+# Fase 3: Integración Master y Workers
+./build/test_master_worker
 ```
 
 ---
@@ -42,71 +47,27 @@ Test project /path/to/build
 ## Suites de pruebas disponibles
 
 ### 1. SumSquaresTest (`tests/unit/test_sum_squares.cpp`)
-
-| Test | Descripción |
-|---|---|
-| `sequential_n_zero` | $N=0 \rightarrow$ resultado 0. |
-| `sequential_n_one` | $N=1 \rightarrow$ resultado 0 (solo $0^2$). |
-| `sequential_n_five` | $N=5 \rightarrow$ resultado 30. |
-| `sequential_n_ten` | $N=10 \rightarrow$ resultado 285. |
-| `sequential_n_hundred` | $N=100 \rightarrow$ resultado 328350. |
-| `sequential_n_max` | $N=2'000'000$ no desborda `uint64_t`. |
-| `partial_interval` | Intervalo $[2,5) \rightarrow 29$. |
-| `partial_empty_interval` | Intervalo $[3,3) \rightarrow 0$. |
-| `aggregate_matches_sequential` | Agregado = secuencial para $N=1000$. |
-| `overflow_rejected` | $N > \text{MAX\_N}$ lanza `OverflowError`. |
-| `overflow_divide_work_rejected` | `divide_work` con $N > \text{MAX\_N}$ lanza `OverflowError`. |
+Pruebas matemáticas del algoritmo de suma de cuadrados, cálculo analítico de referencia y límites de seguridad para evitar desbordamiento.
 
 ### 2. PartitionTest (`tests/unit/test_partition.cpp`)
-
-| Test | Descripción |
-|---|---|
-| `partition_n_zero` | $N=0 \rightarrow$ sin tareas. |
-| `partition_n_one` | $N=1 \rightarrow 1$ tarea. |
-| `partition_divisible` | $N=12$, `tasks=4` $\rightarrow 4$ tareas de igual tamaño. |
-| `partition_not_divisible` | $N=10$, `tasks=3` $\rightarrow$ reparto equilibrado del resto. |
-| `partition_more_tasks_than_elements` | $N=3$, `tasks=10` $\rightarrow$ solo 3 tareas de 1 elemento. |
-| `partition_no_gaps_no_overlaps_exhaustive` | Múltiples combinaciones $N \times \text{tasks}$ verificando sin huecos ni solapamientos. |
-| `partition_aggregate_matches_sequential` | Agregado = secuencial para $N=500$ y 13 tareas. |
-| `partition_zero_tasks_invalid` | `tasks=0` lanza `InvalidParameterError`. |
-| `partition_ids_sequential` | IDs correlativos $0 \dots M-1$. |
+Pruebas de invariantes de partición en intervalos semiabiertos `[begin, end)` sin huecos, sin solapamientos y cobertura exacta de `[0, N)`.
 
 ### 3. ProtocolTest (`tests/unit/test_protocol.cpp`)
-
-| Test | Descripción |
-|---|---|
-| `serialize_deserialize_empty_message` | Serializar y deserializar un mensaje con payload vacío. |
-| `serialize_deserialize_with_payload` | Serializar y deserializar un mensaje con payload de texto. |
-| `preserve_64bit_identifier` | Preservar identificador de 64 bits (`uint64_t`). |
-| `preserve_arbitrary_binary_payload` | Preservar bytes binarios arbitrarios (`0x00`, `0xFF`, bytes intermedios). |
-| `detect_incomplete_header` | Rechazar cabeceras de menos de 20 bytes (`IncompleteMessageError`). |
-| `detect_invalid_payload_length` | Detectar longitud de payload declarada mayor a los bytes disponibles. |
-| `reject_unsupported_version` | Rechazar versión distinta a 1 (`UnsupportedVersionError`). |
-| `reject_invalid_message_type` | Rechazar tipo de mensaje no reconocido (`InvalidMessageTypeError`). |
-| `reject_payload_exceeding_max_limit` | Rechazar payload superior a 1 MiB (`PayloadTooLargeError`). |
-| `truncated_data_safety` | Probar exhaustivamente datos truncados de 0 a $N-1$ bytes sin violaciones de memoria. |
-| `framing_stream_extraction` | Extraer múltiples mensajes acumulados en un buffer de flujo TCP continuo. |
+11 pruebas unitarias del protocolo binario de 20 bytes en Big-Endian, payloads arbitrarios, límite de 1 MiB y seguridad ante datos truncados.
 
 ### 4. NetworkTest (`tests/integration/test_network.cpp`)
+8 pruebas de integración sobre sockets TCP reales en `localhost` (handshake, concurrencia, streams en ráfaga).
 
-| Test | Descripción |
-|---|---|
-| `start_server_and_connect_client` | Iniciar servidor en puerto efímero y conectar cliente real. |
-| `send_hello_receive_hello_ack` | Intercambio de handshake `HELLO` y respuesta `HELLO_ACK`. |
-| `exchange_consecutive_messages` | 10 mensajes continuos `PING` / `PONG` sobre la misma conexión TCP. |
-| `exchange_empty_and_non_empty_payloads` | Enviar y responder mensajes sin payload y con payload de forma consecutiva. |
-| `preserve_64bit_identifiers_and_binary_bytes` | Transmisión de 4096 bytes binarios complejos preservando IDs de 64 bits y contenido exacto. |
-| `detect_client_disconnect` | El servidor detecta la desconexión ordenada del cliente (`PeerDisconnectedError`). |
-| `connection_error_handled_promptly` | Intento de conexión a puerto cerrado falla rápidamente (< 2s) con `ConnectionError`/`TimeoutError` sin bloqueo indefinido. |
-| `burst_pipelined_messages` | Enviar 5 mensajes encadenados en un único buffer y recibirlos individualmente sin asumir un mensaje por llamada `recv`. |
-
----
-
-## Framework de pruebas
-
-Se utiliza un framework minimalista propio (sin bibliotecas externas) con las macros:
-
-- `TEST(nombre)` — Define y auto-registra la prueba.
-- `ASSERT_EQ(a, b)` — Compara valores e imprime discrepancias tipadas.
-- `ASSERT_TRUE(cond)` — Verifica condiciones booleanas.
-- `ASSERT_THROWS(expr, tipo)` — Comprueba el lanzamiento exacto de una excepción esperada.
+### 5. MasterWorkerTest (`tests/integration/test_master_worker.cpp`)
+11 pruebas de integración con sockets TCP reales entre Master y Workers:
+1. `worker_can_connect_to_master`: Conexión exitosa al Master.
+2. `hello_hello_ack_handshake`: Handshake completo `HELLO`/`HELLO_ACK`.
+3. `master_registers_connected_worker`: Registro en memoria y actualización de estado.
+4. `multiple_workers_can_connect_simultaneously`: Conexión concurrente de múltiples Workers.
+5. `each_connection_receives_correct_unique_id`: Asignación correlativa y única de `WorkerId`.
+6. `ping_pong_exchange_works`: Intercambio de mensajes periódicos `PING`/`PONG`.
+7. `worker_disconnect_updates_registry`: Actualización a `Disconnected` ante cierre del socket.
+8. `malformed_message_does_not_crash_master`: Resiliencia ante datos basura sin caída del servidor.
+9. `max_workers_capacity_limit_respected`: Rechazo ordenado al superar `--max-workers`.
+10. `clean_master_shutdown_releases_resources`: Cierre limpio del Master liberando hilos y sockets.
+11. `independent_processes_execution`: Ejecución del binario `hpc_worker` como proceso independiente del sistema operativo.
